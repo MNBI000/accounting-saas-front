@@ -1,20 +1,37 @@
 import React from 'react';
-import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
+import {
+    Box,
+    AppBar,
+    Toolbar,
+    Typography,
+    IconButton,
+    Drawer,
+    List,
+    ListItem,
+    ListItemIcon,
+    ListItemText,
+    Divider,
+    Avatar,
+    Tooltip,
+    ListItemButton
+} from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import LogoutIcon from '@mui/icons-material/Logout';
-import { Outlet, useNavigate } from 'react-router-dom';
-import useAuthStore from '../../stores/useAuthStore';
+import PersonIcon from '@mui/icons-material/Person';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 
-const drawerWidth = 240;
+const drawerWidth = 260;
 
 const MainLayout = () => {
     const [mobileOpen, setMobileOpen] = React.useState(false);
     const navigate = useNavigate();
-    const logout = useAuthStore((state) => state.logout);
+    const location = useLocation();
+    const { logout, user } = useAuth();
 
     const handleDrawerToggle = () => {
         setMobileOpen(!mobileOpen);
@@ -22,7 +39,6 @@ const MainLayout = () => {
 
     const handleLogout = () => {
         logout();
-        navigate('/login');
     };
 
     const menuItems = [
@@ -33,38 +49,97 @@ const MainLayout = () => {
     ];
 
     const drawer = (
-        <div>
-            <Toolbar>
-                <Typography variant="h6" noWrap component="div">
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Toolbar sx={{ px: 2, py: 3 }}>
+                <Typography
+                    variant="h5"
+                    noWrap
+                    component="div"
+                    sx={{
+                        fontWeight: 'bold',
+                        color: 'primary.main',
+                        letterSpacing: 1
+                    }}
+                >
                     Accounting SaaS
                 </Typography>
             </Toolbar>
             <Divider />
-            <List>
+
+            {/* User Profile Section in Sidebar */}
+            <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar sx={{ bgcolor: 'secondary.main' }}>
+                    {user?.name?.charAt(0) || <PersonIcon />}
+                </Avatar>
+                <Box sx={{ overflow: 'hidden' }}>
+                    <Typography variant="subtitle2" noWrap sx={{ fontWeight: 'bold' }}>
+                        {user?.name || 'مستخدم'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" noWrap display="block">
+                        {user?.email || ''}
+                    </Typography>
+                </Box>
+            </Box>
+            <Divider />
+
+            <List sx={{ flexGrow: 1, px: 1 }}>
                 {menuItems.map((item) => (
-                    <ListItem button key={item.text} onClick={() => navigate(item.path)}>
-                        <ListItemIcon>{item.icon}</ListItemIcon>
-                        <ListItemText primary={item.text} />
+                    <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+                        <ListItemButton
+                            onClick={() => navigate(item.path)}
+                            selected={location.pathname === item.path}
+                            sx={{
+                                borderRadius: 2,
+                                '&.Mui-selected': {
+                                    bgcolor: 'primary.light',
+                                    color: 'primary.contrastText',
+                                    '& .MuiListItemIcon-root': {
+                                        color: 'primary.contrastText',
+                                    },
+                                    '&:hover': {
+                                        bgcolor: 'primary.main',
+                                    }
+                                }
+                            }}
+                        >
+                            <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
+                            <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: 500 }} />
+                        </ListItemButton>
                     </ListItem>
                 ))}
             </List>
+
             <Divider />
-            <List>
-                <ListItem button onClick={handleLogout}>
-                    <ListItemIcon><LogoutIcon /></ListItemIcon>
-                    <ListItemText primary="تسجيل خروج" />
+            <List sx={{ px: 1 }}>
+                <ListItem disablePadding>
+                    <ListItemButton
+                        onClick={handleLogout}
+                        sx={{
+                            borderRadius: 2,
+                            color: 'error.main',
+                            '& .MuiListItemIcon-root': { color: 'error.main' }
+                        }}
+                    >
+                        <ListItemIcon sx={{ minWidth: 40 }}><LogoutIcon /></ListItemIcon>
+                        <ListItemText primary="تسجيل خروج" primaryTypographyProps={{ fontWeight: 500 }} />
+                    </ListItemButton>
                 </ListItem>
             </List>
-        </div>
+        </Box>
     );
 
     return (
         <Box sx={{ display: 'flex' }}>
             <AppBar
                 position="fixed"
+                elevation={0}
                 sx={{
                     width: { sm: `calc(100% - ${drawerWidth}px)` },
-                    ml: { sm: `${drawerWidth}px` },
+                    mr: { sm: `${drawerWidth}px` }, // Use mr for RTL
+                    bgcolor: 'background.paper',
+                    color: 'text.primary',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider'
                 }}
             >
                 <Toolbar>
@@ -77,22 +152,22 @@ const MainLayout = () => {
                     >
                         <MenuIcon />
                     </IconButton>
-                    <Typography variant="h6" noWrap component="div">
-                        لوحة التحكم
+                    <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold' }}>
+                        {menuItems.find(i => i.path === location.pathname)?.text || 'لوحة التحكم'}
                     </Typography>
                 </Toolbar>
             </AppBar>
             <Box
                 component="nav"
                 sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-                aria-label="mailbox folders"
             >
                 <Drawer
                     variant="temporary"
+                    anchor="right" // Anchor to right for RTL
                     open={mobileOpen}
                     onClose={handleDrawerToggle}
                     ModalProps={{
-                        keepMounted: true, // Better open performance on mobile.
+                        keepMounted: true,
                     }}
                     sx={{
                         display: { xs: 'block', sm: 'none' },
@@ -103,6 +178,7 @@ const MainLayout = () => {
                 </Drawer>
                 <Drawer
                     variant="permanent"
+                    anchor="right" // Anchor to right for RTL
                     sx={{
                         display: { xs: 'none', sm: 'block' },
                         '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
@@ -114,7 +190,13 @@ const MainLayout = () => {
             </Box>
             <Box
                 component="main"
-                sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
+                sx={{
+                    flexGrow: 1,
+                    p: 3,
+                    width: { sm: `calc(100% - ${drawerWidth}px)` },
+                    minHeight: '100vh',
+                    bgcolor: 'grey.50'
+                }}
             >
                 <Toolbar />
                 <Outlet />
@@ -124,3 +206,4 @@ const MainLayout = () => {
 };
 
 export default MainLayout;
+

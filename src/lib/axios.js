@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create an Axios instance
 const apiClient = axios.create({
-    baseURL: 'http://localhost:8000/api', // Default local Laravel API
+    baseURL: '/api', // Use relative path for Vite proxy in development
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

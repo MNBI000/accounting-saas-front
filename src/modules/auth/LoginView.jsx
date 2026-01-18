@@ -9,51 +9,30 @@ import {
     Typography,
     Paper,
     Container,
-    Alert
+    Alert,
+    CircularProgress
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
-import { authService } from '../../services/authService';
-import useAuthStore from '../../stores/useAuthStore';
+import { useAuth } from '../../hooks/useAuth';
 
 // Validation Schema
 const schema = yup.object({
-    email: yup.string().email('Invalid email format').required('Email is required'),
-    password: yup.string().required('Password is required'),
+    email: yup.string().email('البريد الإلكتروني غير صحيح').required('البريد الإلكتروني مطلوب'),
+    password: yup.string().required('كلمة المرور مطلوبة'),
 }).required();
 
 const LoginView = () => {
-    const navigate = useNavigate();
-    const setLogin = useAuthStore((state) => state.login);
+    const { login, isLoggingIn, loginError } = useAuth();
 
     const { register, handleSubmit, formState: { errors } } = useForm({
         resolver: yupResolver(schema)
     });
 
-    // React Query Mutation
-    const mutation = useMutation({
-        mutationFn: ({ email, password }) => authService.login(email, password),
-        onSuccess: (data) => {
-            // Assuming API returns { token: '...', user: { ... } }
-            // Adjust based on actual API response structure
-            // The guide says response is { token: "..." }
-            // We might need to fetch user separately or API returns it.
-            // Let's assume we get token, then we might need to fetch user.
-
-            const token = data.token;
-            // For now, let's just set the token. We should probably fetch user details next.
-            // But to keep it simple for this step:
-            setLogin({ email: 'user@example.com' }, token); // Placeholder user until we fetch real one
-            navigate('/');
-        },
-        onError: (error) => {
-            console.error('Login failed', error);
-        }
-    });
-
     const onSubmit = (data) => {
-        mutation.mutate(data);
+        login(data);
     };
+
+    // Extract API validation errors if any (422)
+    const apiErrors = loginError?.response?.data?.errors;
 
     return (
         <Container component="main" maxWidth="xs">
@@ -65,14 +44,38 @@ const LoginView = () => {
                     alignItems: 'center',
                 }}
             >
-                <Paper elevation={3} sx={{ p: 4, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <Typography component="h1" variant="h5" sx={{ mb: 3 }}>
+                <Paper
+                    elevation={6}
+                    sx={{
+                        p: 4,
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        borderRadius: 2,
+                        background: 'rgba(255, 255, 255, 0.9)',
+                        backdropFilter: 'blur(10px)'
+                    }}
+                >
+                    <Typography
+                        component="h1"
+                        variant="h4"
+                        sx={{
+                            mb: 3,
+                            fontWeight: 'bold',
+                            color: 'primary.main'
+                        }}
+                    >
                         تسجيل الدخول
                     </Typography>
 
-                    {mutation.isError && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        نظام المحاسبة السحابي المتكامل
+                    </Typography>
+
+                    {loginError && !apiErrors && (
                         <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
-                            فشل تسجيل الدخول. يرجى التحقق من البيانات.
+                            {loginError.response?.data?.message || 'فشل تسجيل الدخول. يرجى التحقق من الاتصال.'}
                         </Alert>
                     )}
 
@@ -87,8 +90,9 @@ const LoginView = () => {
                             autoComplete="email"
                             autoFocus
                             {...register('email')}
-                            error={!!errors.email}
-                            helperText={errors.email?.message}
+                            error={!!errors.email || !!apiErrors?.email}
+                            helperText={errors.email?.message || apiErrors?.email?.[0]}
+                            sx={{ mb: 2 }}
                         />
                         <TextField
                             margin="normal"
@@ -100,17 +104,30 @@ const LoginView = () => {
                             id="password"
                             autoComplete="current-password"
                             {...register('password')}
-                            error={!!errors.password}
-                            helperText={errors.password?.message}
+                            error={!!errors.password || !!apiErrors?.password}
+                            helperText={errors.password?.message || apiErrors?.password?.[0]}
+                            sx={{ mb: 3 }}
                         />
                         <Button
                             type="submit"
                             fullWidth
                             variant="contained"
-                            sx={{ mt: 3, mb: 2 }}
-                            disabled={mutation.isPending}
+                            size="large"
+                            sx={{
+                                mt: 1,
+                                mb: 2,
+                                py: 1.5,
+                                fontSize: '1.1rem',
+                                fontWeight: 'bold',
+                                borderRadius: 2
+                            }}
+                            disabled={isLoggingIn}
                         >
-                            {mutation.isPending ? 'جاري الدخول...' : 'دخول'}
+                            {isLoggingIn ? (
+                                <CircularProgress size={24} color="inherit" />
+                            ) : (
+                                'دخول'
+                            )}
                         </Button>
                     </Box>
                 </Paper>
@@ -120,3 +137,4 @@ const LoginView = () => {
 };
 
 export default LoginView;
+

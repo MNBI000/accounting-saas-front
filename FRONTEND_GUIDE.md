@@ -7,7 +7,7 @@ This document outlines the complete user journey, implementation details, and a 
 ## 🚀 1. Authentication & Setup
 
 ### A. Authentication
-**Base URL**: `/api`
+**Base URL**: `localhost:8000/api`
 
 #### 1. Login
 - **Endpoint**: `POST /login`
