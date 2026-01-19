@@ -9,6 +9,7 @@ import rtlPlugin from 'stylis-plugin-rtl';
 
 import MainLayout from './components/layout/MainLayout';
 import LoginView from './modules/auth/LoginView';
+import DashboardView from './modules/dashboard/DashboardView';
 import useAuthStore from './stores/useAuthStore';
 import theme from './config/theme';
 
@@ -42,10 +43,12 @@ function App() {
                                     <MainLayout />
                                 </ProtectedRoute>
                             }>
-                                <Route index element={<div>Dashboard Home</div>} />
+                                <Route index element={<DashboardView />} />
                                 <Route path="sales" element={<div>Sales Module</div>} />
                                 <Route path="inventory" element={<div>Inventory Module</div>} />
                                 <Route path="accounting" element={<div>Accounting Module</div>} />
+                                <Route path="reports" element={<div>Reports Module</div>} />
+                                <Route path="treasury" element={<div>Treasury Module</div>} />
                             </Route>
                         </Routes>
                     </Router>

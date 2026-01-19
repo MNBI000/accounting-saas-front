@@ -27,6 +27,12 @@ const LoginView = () => {
         resolver: yupResolver(schema)
     });
 
+    React.useEffect(() => {
+        if (loginError) {
+            console.error('Login Error Details:', loginError);
+        }
+    }, [loginError]);
+
     const onSubmit = (data) => {
         login(data);
     };
@@ -75,7 +81,7 @@ const LoginView = () => {
 
                     {loginError && !apiErrors && (
                         <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
-                            {loginError.response?.data?.message || 'فشل تسجيل الدخول. يرجى التحقق من الاتصال.'}
+                            {loginError.response?.data?.message || loginError.message || 'فشل تسجيل الدخول. يرجى التحقق من الاتصال.'}
                         </Alert>
                     )}
 
@@ -137,4 +143,3 @@ const LoginView = () => {
 };
 
 export default LoginView;
-

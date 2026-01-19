@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
     Box,
     AppBar,
@@ -12,7 +12,6 @@ import {
     ListItemText,
     Divider,
     Avatar,
-    Tooltip,
     ListItemButton
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -22,8 +21,12 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { usePermissions } from '../../hooks/usePermissions';
+import { PERMISSIONS } from '../../utils/permissions';
 
 const drawerWidth = 260;
 
@@ -32,6 +35,7 @@ const MainLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { logout, user } = useAuth();
+    const { hasAnyPermission } = usePermissions();
 
     const handleDrawerToggle = () => {
         setMobileOpen(!mobileOpen);
@@ -41,12 +45,73 @@ const MainLayout = () => {
         logout();
     };
 
-    const menuItems = [
-        { text: 'لوحة التحكم', icon: <DashboardIcon />, path: '/' },
-        { text: 'المبيعات', icon: <ReceiptIcon />, path: '/sales' },
-        { text: 'المخزون', icon: <InventoryIcon />, path: '/inventory' },
-        { text: 'الحسابات', icon: <AccountBalanceIcon />, path: '/accounting' },
+    // Define all menu items with their required permissions
+    const allMenuItems = [
+        {
+            text: 'لوحة التحكم',
+            icon: <DashboardIcon />,
+            path: '/',
+            requiredPermissions: null // Dashboard is accessible to all authenticated users
+        },
+        {
+            text: 'المبيعات',
+            icon: <ReceiptIcon />,
+            path: '/sales',
+            requiredPermissions: [
+                PERMISSIONS.INVOICES_VIEW,
+                PERMISSIONS.INVOICES_CREATE,
+            ]
+        },
+        {
+            text: 'المخزون',
+            icon: <InventoryIcon />,
+            path: '/inventory',
+            requiredPermissions: [
+                PERMISSIONS.PRODUCTS_VIEW,
+                PERMISSIONS.INVENTORY_MANAGE,
+            ]
+        },
+        {
+            text: 'الحسابات',
+            icon: <AccountBalanceIcon />,
+            path: '/accounting',
+            requiredPermissions: [
+                PERMISSIONS.ACCOUNTS_VIEW,
+                PERMISSIONS.JOURNAL_ENTRIES_VIEW,
+            ]
+        },
+        {
+            text: 'التقارير',
+            icon: <AssessmentIcon />,
+            path: '/reports',
+            requiredPermissions: [
+                PERMISSIONS.REPORTS_TRIAL_BALANCE,
+                PERMISSIONS.REPORTS_INCOME_STATEMENT,
+                PERMISSIONS.REPORTS_BALANCE_SHEET,
+                PERMISSIONS.REPORTS_VAT_RETURN,
+                PERMISSIONS.REPORTS_CUSTOMER_STATEMENT,
+            ]
+        },
+        {
+            text: 'الخزينة',
+            icon: <AccountBalanceWalletIcon />,
+            path: '/treasury',
+            requiredPermissions: [
+                PERMISSIONS.VOUCHERS_VIEW,
+            ]
+        },
     ];
+
+    // Filter menu items based on user permissions
+    const menuItems = useMemo(() => {
+        return allMenuItems.filter(item => {
+            // If no permission required, show the item
+            if (!item.requiredPermissions) return true;
+
+            // Check if user has any of the required permissions
+            return hasAnyPermission(item.requiredPermissions);
+        });
+    }, [hasAnyPermission]);
 
     const drawer = (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -206,4 +271,3 @@ const MainLayout = () => {
 };
 
 export default MainLayout;
-

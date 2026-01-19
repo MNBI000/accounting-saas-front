@@ -12,9 +12,17 @@ export const useAuth = () => {
     const loginMutation = useMutation({
         mutationFn: ({ email, password }) => apiAuth.login(email, password),
         onSuccess: async (data) => {
-            const { token } = data;
-            // 1. Save token to store (and localStorage via store middleware)
-            // We temporarily set user to null or a placeholder until we fetch the real one
+            console.log('Login Mutation Success:', data);
+            const { token, user } = data;
+
+            // If user data is returned with login, use it directly
+            if (user) {
+                setLogin(user, token);
+                navigate('/');
+                return;
+            }
+
+            // Otherwise, save token and fetch user
             setLogin(null, token);
 
             // 2. Fetch the actual user data
@@ -27,6 +35,9 @@ export const useAuth = () => {
                 // If fetching user fails, we might want to logout or handle it
             }
         },
+        onError: (error) => {
+            console.error('Login Mutation Error:', error);
+        }
     });
 
     // Logout Mutation
