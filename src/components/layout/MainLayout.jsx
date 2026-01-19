@@ -228,7 +228,7 @@ const MainLayout = () => {
             >
                 <Drawer
                     variant="temporary"
-                    anchor="right" // Anchor to right for RTL
+                    anchor="left" // Anchor to left (Start = Right in RTL)
                     open={mobileOpen}
                     onClose={handleDrawerToggle}
                     ModalProps={{
@@ -243,7 +243,7 @@ const MainLayout = () => {
                 </Drawer>
                 <Drawer
                     variant="permanent"
-                    anchor="right" // Anchor to right for RTL
+                    anchor="left" // Anchor to left (Start = Right in RTL)
                     sx={{
                         display: { xs: 'none', sm: 'block' },
                         '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
