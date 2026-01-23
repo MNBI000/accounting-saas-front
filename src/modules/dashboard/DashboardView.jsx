@@ -61,7 +61,7 @@ const DashboardView = () => {
             description: 'فواتير المبيعات والمشتريات',
             icon: ReceiptIcon,
             color: '#f57c00',
-            path: '/sales/invoices',
+            path: '/sales',
             requiredPermissions: [PERMISSIONS.INVOICES_VIEW],
         },
         {
@@ -71,7 +71,7 @@ const DashboardView = () => {
             description: 'إدارة كتالوج المنتجات',
             icon: ProductsIcon,
             color: '#7b1fa2',
-            path: '/inventory/products',
+            path: '/inventory?tab=products',
             requiredPermissions: [PERMISSIONS.PRODUCTS_VIEW],
         },
         {
@@ -81,7 +81,7 @@ const DashboardView = () => {
             description: 'إدخال وإخراج المخزون',
             icon: InventoryIcon,
             color: '#c2185b',
-            path: '/inventory/movements',
+            path: '/inventory?tab=movements',
             requiredPermissions: [PERMISSIONS.INVENTORY_MANAGE],
         },
         {

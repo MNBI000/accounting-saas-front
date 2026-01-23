@@ -23,6 +23,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -59,6 +60,14 @@ const MainLayout = () => {
             path: '/sales',
             requiredPermissions: [
                 PERMISSIONS.INVOICES_VIEW,
+                PERMISSIONS.INVOICES_CREATE,
+            ]
+        },
+        {
+            text: 'نقطة البيع',
+            icon: <PointOfSaleIcon />,
+            path: '/cashier',
+            requiredPermissions: [
                 PERMISSIONS.INVOICES_CREATE,
             ]
         },
