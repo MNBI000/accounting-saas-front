@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Paper,
@@ -12,7 +12,9 @@ import {
     IconButton,
     Typography,
     Chip,
-    Tooltip
+    Tooltip,
+    CircularProgress,
+    Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -21,23 +23,37 @@ import PrintIcon from '@mui/icons-material/Print';
 import { usePermissions } from '../../hooks/usePermissions';
 import { PERMISSIONS } from '../../utils/permissions';
 import VoucherForm from './VoucherForm';
-
-// Mock Data
-const MOCK_VOUCHERS = [
-    { id: 1, number: 'V-2024-001', date: '2024-01-15', type: 'payment', beneficiary: 'شركة التوريدات الحديثة', amount: 5000, currency: 'EGP', status: 'posted', description: 'دفعة مقدمة - فاتورة 101' },
-    { id: 2, number: 'V-2024-002', date: '2024-01-16', type: 'receipt', beneficiary: 'العميل: أحمد محمد', amount: 1200, currency: 'EGP', status: 'draft', description: 'سداد فاتورة مبيعات 55' },
-    { id: 3, number: 'V-2024-003', date: '2024-01-18', type: 'payment', beneficiary: 'شركة الكهرباء', amount: 350, currency: 'EGP', status: 'posted', description: 'فاتورة كهرباء يناير' },
-];
+import { apiVouchers } from '../../services/apiVouchers';
 
 const VoucherList = () => {
     const { hasPermission } = usePermissions();
-    const [vouchers, setVouchers] = useState(MOCK_VOUCHERS);
+    const [vouchers, setVouchers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [openForm, setOpenForm] = useState(false);
     const [selectedVoucher, setSelectedVoucher] = useState(null);
 
     const canCreate = hasPermission(PERMISSIONS.VOUCHERS_CREATE);
     const canEdit = hasPermission(PERMISSIONS.VOUCHERS_EDIT);
     const canDelete = hasPermission(PERMISSIONS.VOUCHERS_DELETE);
+
+    const fetchVouchers = async () => {
+        setLoading(true);
+        try {
+            const data = await apiVouchers.getAll();
+            setVouchers(data.data || data); // Handle cases where data is wrapped
+            setError(null);
+        } catch (err) {
+            console.error("Error fetching vouchers:", err);
+            setError("فشل في تحميل السندات");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchVouchers();
+    }, []);
 
     const handleCreate = () => {
         setSelectedVoucher(null);
@@ -49,34 +65,54 @@ const VoucherList = () => {
         setOpenForm(true);
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('هل أنت متأكد من حذف هذا السند؟')) {
-            setVouchers(vouchers.filter(v => v.id !== id));
+            try {
+                await apiVouchers.delete(id);
+                setVouchers(vouchers.filter(v => v.id !== id));
+            } catch (err) {
+                console.error("Error deleting voucher:", err);
+                alert("فشلت عملية الحذف");
+            }
         }
     };
 
-    const handleSave = (voucher) => {
-        if (selectedVoucher) {
-            // Edit
-            setVouchers(vouchers.map(v => v.id === voucher.id ? { ...v, ...voucher } : v));
-        } else {
-            // Create
-            setVouchers([...vouchers, { ...voucher, id: Date.now(), status: 'draft' }]);
+    const handleSave = async (voucherData) => {
+        try {
+            if (selectedVoucher) {
+                // Edit
+                const updatedVoucher = await apiVouchers.update(selectedVoucher.id, voucherData);
+                setVouchers(vouchers.map(v => v.id === selectedVoucher.id ? (updatedVoucher.data || updatedVoucher) : v));
+            } else {
+                // Create
+                const newVoucher = await apiVouchers.create(voucherData);
+                setVouchers([newVoucher.data || newVoucher, ...vouchers]);
+            }
+            setOpenForm(false);
+            fetchVouchers(); // Refresh list to ensure consistency
+        } catch (err) {
+            console.error("Error saving voucher:", err);
+            alert("فشلت عملية الحفظ");
         }
-        setOpenForm(false);
     };
 
     const handlePrint = (voucher) => {
         const printWindow = window.open('', '_blank', 'width=800,height=600');
 
         const voucherTitle = voucher.type === 'payment' ? 'سند صرف نقدية' : 'سند قبض نقدية';
-        const companyName = 'الشركة الافتراضية للتجارة'; // Placeholder
+        const companyName = 'الشركة الافتراضية للتجارة'; // Placeholder or from config
+
+        // Determine beneficiary name
+        const beneficiaryName = voucher.account?.name_ar || voucher.account?.name_en || 'غير محدد';
+        const paymentDetails = voucher.treasury
+            ? `خزينة: ${voucher.treasury.name}`
+            : (voucher.bank_account ? `بنك: ${voucher.bank_account.bank_name} - ${voucher.bank_account.account_number}` : '');
 
         const htmlContent = `
             <!DOCTYPE html>
             <html dir="rtl" lang="ar">
             <head>
-                <title>طباعة ${voucher.number}</title>
+                <title>طباعة ${voucher.voucher_number}</title>
                 <style>
                     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f5f5f5; }
                     .voucher-container { 
@@ -156,7 +192,7 @@ const VoucherList = () => {
                     <div class="meta-grid">
                         <div class="meta-item">
                             <strong>رقم السند</strong>
-                            <span>${voucher.number}</span>
+                            <span>${voucher.voucher_number}</span>
                         </div>
                         <div class="meta-item" style="text-align: left;">
                             <strong>التاريخ</strong>
@@ -165,21 +201,21 @@ const VoucherList = () => {
                     </div>
 
                     <div class="amount-box">
-                        ${voucher.amount.toLocaleString()} ${voucher.currency}
+                        ${Number(voucher.amount).toLocaleString()}
                     </div>
 
                     <table class="details-table">
                         <tr>
                             <td class="label">المستفيد / المستلم:</td>
-                            <td class="value">${voucher.beneficiary}</td>
+                            <td class="value">${beneficiaryName}</td>
                         </tr>
                         <tr>
                             <td class="label">وذلك عن:</td>
                             <td class="value">${voucher.description}</td>
                         </tr>
-                        <tr>
-                            <td class="label">طريقة الدفع:</td>
-                            <td class="value">نقداً / شيك</td>
+                         <tr>
+                            <td class="label">وسيلة الدفع:</td>
+                            <td class="value">${paymentDetails}</td>
                         </tr>
                     </table>
 
@@ -246,70 +282,90 @@ const VoucherList = () => {
                 )}
             </Box>
 
+            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
             <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>رقم السند</TableCell>
-                            <TableCell>التاريخ</TableCell>
-                            <TableCell>النوع</TableCell>
-                            <TableCell>المستفيد / المستلم</TableCell>
-                            <TableCell>المبلغ</TableCell>
-                            <TableCell>العملة</TableCell>
-                            <TableCell>الحالة</TableCell>
-                            <TableCell>البيان</TableCell>
-                            <TableCell align="center">إجراءات</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {vouchers.map((voucher) => (
-                            <TableRow key={voucher.id}>
-                                <TableCell>{voucher.number}</TableCell>
-                                <TableCell>{voucher.date}</TableCell>
-                                <TableCell>
-                                    <Chip
-                                        label={getTypeLabel(voucher.type)}
-                                        size="small"
-                                        color={voucher.type === 'payment' ? 'error' : 'success'}
-                                        variant="outlined"
-                                    />
-                                </TableCell>
-                                <TableCell>{voucher.beneficiary}</TableCell>
-                                <TableCell>{voucher.amount.toLocaleString()}</TableCell>
-                                <TableCell>{voucher.currency}</TableCell>
-                                <TableCell>
-                                    <Chip
-                                        label={getStatusLabel(voucher.status)}
-                                        color={getStatusColor(voucher.status)}
-                                        size="small"
-                                    />
-                                </TableCell>
-                                <TableCell>{voucher.description}</TableCell>
-                                <TableCell align="center">
-                                    <Tooltip title="طباعة">
-                                        <IconButton size="small" color="primary" onClick={() => handlePrint(voucher)}>
-                                            <PrintIcon />
-                                        </IconButton>
-                                    </Tooltip>
-                                    {canEdit && voucher.status === 'draft' && (
-                                        <Tooltip title="تعديل">
-                                            <IconButton size="small" color="info" onClick={() => handleEdit(voucher)}>
-                                                <EditIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                    )}
-                                    {canDelete && voucher.status === 'draft' && (
-                                        <Tooltip title="حذف">
-                                            <IconButton size="small" color="error" onClick={() => handleDelete(voucher.id)}>
-                                                <DeleteIcon />
-                                            </IconButton>
-                                        </Tooltip>
-                                    )}
-                                </TableCell>
+                {loading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                        <CircularProgress />
+                    </Box>
+                ) : (
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>رقم السند</TableCell>
+                                <TableCell>التاريخ</TableCell>
+                                <TableCell>النوع</TableCell>
+                                <TableCell>المستفيد / المستلم</TableCell>
+                                <TableCell>المبلغ</TableCell>
+                                <TableCell>الوسيلة</TableCell>
+                                <TableCell>الحالة</TableCell>
+                                <TableCell>البيان</TableCell>
+                                <TableCell align="center">إجراءات</TableCell>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                        </TableHead>
+                        <TableBody>
+                            {vouchers.map((voucher) => (
+                                <TableRow key={voucher.id}>
+                                    <TableCell>{voucher.voucher_number || voucher.number}</TableCell>
+                                    <TableCell>{voucher.date}</TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label={getTypeLabel(voucher.type)}
+                                            size="small"
+                                            color={voucher.type === 'payment' ? 'error' : 'success'}
+                                            variant="outlined"
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        {voucher.account?.name_ar || voucher.account?.name_en || 'غير محدد'}
+                                    </TableCell>
+                                    <TableCell>{Number(voucher.amount).toLocaleString()}</TableCell>
+                                    <TableCell>
+                                        {voucher.treasury_id ? 'خزينة' : (voucher.bank_account_id ? 'بنك' : 'غير محدد')}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label={getStatusLabel(voucher.status || 'posted')} // Default for now if missing
+                                            color={getStatusColor(voucher.status || 'posted')}
+                                            size="small"
+                                        />
+                                    </TableCell>
+                                    <TableCell>{voucher.description}</TableCell>
+                                    <TableCell align="center">
+                                        <Tooltip title="طباعة">
+                                            <IconButton size="small" color="primary" onClick={() => handlePrint(voucher)}>
+                                                <PrintIcon />
+                                            </IconButton>
+                                        </Tooltip>
+                                        {/* Assuming only draft can be acted upon, or remove check if API handles permissions */}
+                                        {canEdit && (voucher.status === 'draft' || !voucher.status) && (
+                                            <Tooltip title="تعديل">
+                                                <IconButton size="small" color="info" onClick={() => handleEdit(voucher)}>
+                                                    <EditIcon />
+                                                </IconButton>
+                                            </Tooltip>
+                                        )}
+                                        {canDelete && (voucher.status === 'draft' || !voucher.status) && (
+                                            <Tooltip title="حذف">
+                                                <IconButton size="small" color="error" onClick={() => handleDelete(voucher.id)}>
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            </Tooltip>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                            {vouchers.length === 0 && (
+                                <TableRow>
+                                    <TableCell colSpan={9} align="center">
+                                        لا توجد سندات
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                )}
             </TableContainer>
 
             <VoucherForm
@@ -323,3 +379,4 @@ const VoucherList = () => {
 };
 
 export default VoucherList;
+

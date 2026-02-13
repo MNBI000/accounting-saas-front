@@ -38,6 +38,12 @@ export const PERMISSIONS = {
     VOUCHERS_EDIT: 'vouchers.edit',
     VOUCHERS_DELETE: 'vouchers.delete',
 
+    // Treasuries
+    TREASURIES_VIEW: 'treasuries.view',
+    TREASURIES_CREATE: 'treasuries.create',
+    TREASURIES_EDIT: 'treasuries.edit',
+    TREASURIES_DELETE: 'treasuries.delete',
+
     // Reports
     REPORTS_TRIAL_BALANCE: 'reports.trial_balance',
     REPORTS_INCOME_STATEMENT: 'reports.income_statement',

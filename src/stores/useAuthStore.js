@@ -85,13 +85,15 @@ const useAuthStore = create(
 
             // Check if user has a specific permission
             hasPermission: (permission) => {
-                const { permissions } = get();
+                const { user, permissions } = get();
+                if (user && isAdmin(user)) return true; // Implicit admin access
                 return (permissions || []).includes(permission);
             },
 
             // Check if user has any of the permissions
             hasAnyPermission: (permissionList) => {
-                const { permissions } = get();
+                const { user, permissions } = get();
+                if (user && isAdmin(user)) return true; // Implicit admin access
                 return permissionList.some(p => (permissions || []).includes(p));
             },
         }),
