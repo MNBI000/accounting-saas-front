@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Button, IconButton, Typography, Chip, Tooltip
+    Button, IconButton, Typography, Chip, Tooltip, CircularProgress, Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -11,31 +11,7 @@ import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import { usePermissions } from '../../hooks/usePermissions';
 import { PERMISSIONS } from '../../utils/permissions';
 import AccountForm from './AccountForm';
-
-// Mock Data for Chart of Accounts
-const MOCK_ACCOUNTS = [
-    {
-        id: 1, code: '1', name_ar: 'الأصول', name_en: 'Assets', type: 'asset', parent_id: null, level: 1, children: [
-            {
-                id: 11, code: '11', name_ar: 'الأصول المتداولة', name_en: 'Current Assets', type: 'asset', parent_id: 1, level: 2, children: [
-                    {
-                        id: 111, code: '111', name_ar: 'النقدية وما في حكمها', name_en: 'Cash & Equivalents', type: 'asset', parent_id: 11, level: 3, children: [
-                            { id: 1111, code: '1111', name_ar: 'الصندوق الرئيسي', name_en: 'Main Cash', type: 'asset', parent_id: 111, level: 4, is_selectable: true },
-                            { id: 1112, code: '1112', name_ar: 'البنك الأهلي', name_en: 'NBE Bank', type: 'asset', parent_id: 111, level: 4, is_selectable: true },
-                            { id: 1113, code: '1113', name_ar: 'فودافون كاش', name_en: 'Vodafone Cash', type: 'asset', parent_id: 111, level: 4, is_selectable: true }
-                        ]
-                    },
-                    { id: 112, code: '112', name_ar: 'العملاء', name_en: 'Accounts Receivable', type: 'asset', parent_id: 11, level: 3, is_selectable: true }
-                ]
-            },
-            { id: 12, code: '12', name_ar: 'الأصول الثابتة', name_en: 'Fixed Assets', type: 'asset', parent_id: 1, level: 2, children: [] }
-        ]
-    },
-    { id: 2, code: '2', name_ar: 'الخصوم', name_en: 'Liabilities', type: 'liability', parent_id: null, level: 1, children: [] },
-    { id: 3, code: '3', name_ar: 'حقوق الملكية', name_en: 'Equity', type: 'equity', parent_id: null, level: 1, children: [] },
-    { id: 4, code: '4', name_ar: 'الإيرادات', name_en: 'Revenue', type: 'revenue', parent_id: null, level: 1, children: [] },
-    { id: 5, code: '5', name_ar: 'المصروفات', name_en: 'Expenses', type: 'expense', parent_id: null, level: 1, children: [] }
-];
+import { apiAccounts } from '../../services/apiAccounts';
 
 const AccountRow = ({ account, level = 0, onEdit, onDelete, canEdit, canDelete }) => {
     const [open, setOpen] = useState(true);
@@ -111,13 +87,73 @@ const AccountRow = ({ account, level = 0, onEdit, onDelete, canEdit, canDelete }
 
 const AccountsList = () => {
     const { hasPermission } = usePermissions();
-    const [accounts, setAccounts] = useState(MOCK_ACCOUNTS);
+    const [accounts, setAccounts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [openForm, setOpenForm] = useState(false);
     const [selectedAccount, setSelectedAccount] = useState(null);
 
     const canCreate = hasPermission(PERMISSIONS.ACCOUNTS_CREATE);
     const canEdit = hasPermission(PERMISSIONS.ACCOUNTS_EDIT);
     const canDelete = hasPermission(PERMISSIONS.ACCOUNTS_DELETE);
+
+    const fetchAccounts = async () => {
+        setLoading(true);
+        try {
+            const data = await apiAccounts.getAll();
+
+            let accountsData = [];
+            if (Array.isArray(data)) {
+                accountsData = data;
+            } else if (data.data && Array.isArray(data.data)) {
+                accountsData = data.data;
+            }
+
+            // Check if data is already a tree (roots only in top level) or flat list
+            // If we find items with parent_id != null in the top level array, it's likely a flat list
+            const isFlat = accountsData.some(item => item.parent_id !== null && item.parent_id !== undefined);
+
+            if (isFlat) {
+                const tree = buildTree(accountsData);
+                setAccounts(tree);
+            } else {
+                setAccounts(accountsData);
+            }
+
+            setError(null);
+        } catch (err) {
+            console.error("Failed to fetch accounts", err);
+            setError("فشل في تحميل دليل الحسابات. تأكد من الاتصال بالخادم.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Helper to build tree from flat list
+    const buildTree = (items) => {
+        const rootItems = [];
+        const lookup = {};
+        for (const item of items) {
+            lookup[item.id] = { ...item, children: [] };
+        }
+        for (const item of items) {
+            if (item.parent_id) {
+                if (lookup[item.parent_id]) {
+                    lookup[item.parent_id].children.push(lookup[item.id]);
+                } else {
+                    // Parent not found, maybe treat as root?
+                    rootItems.push(lookup[item.id]);
+                }
+            } else {
+                rootItems.push(lookup[item.id]);
+            }
+        }
+        return rootItems;
+    };
+
+    useEffect(() => {
+        fetchAccounts();
+    }, []);
 
     const handleCreate = () => {
         setSelectedAccount(null);
@@ -129,18 +165,35 @@ const AccountsList = () => {
         setOpenForm(true);
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('هل أنت متأكد من حذف هذا الحساب؟')) {
-            // Recursive delete logic would go here in real app
-            console.log('Delete Account', id);
+            try {
+                await apiAccounts.delete(id);
+                fetchAccounts(); // Refresh list
+            } catch (err) {
+                console.error("Failed to delete account", err);
+                alert("فشل حذف الحساب");
+            }
         }
     };
 
-    const handleSave = (accountData) => {
-        // Mock save logic
-        console.log('Saving account:', accountData);
-        setOpenForm(false);
+    const handleSave = async (accountData) => {
+        try {
+            if (selectedAccount) {
+                await apiAccounts.update(selectedAccount.id, accountData);
+            } else {
+                await apiAccounts.create(accountData);
+            }
+            setOpenForm(false);
+            fetchAccounts(); // Refresh list
+        } catch (err) {
+            console.error("Failed to save account", err);
+            alert("فشل حفظ الحساب");
+        }
     };
+
+    if (loading) return <Box sx={{ p: 3, textAlign: 'center' }}><CircularProgress /></Box>;
+    if (error) return <Box sx={{ p: 3 }}><Alert severity="error">{error}</Alert></Box>;
 
     return (
         <Box>
@@ -169,16 +222,22 @@ const AccountsList = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {accounts.map((account) => (
-                            <AccountRow
-                                key={account.id}
-                                account={account}
-                                onEdit={handleEdit}
-                                onDelete={handleDelete}
-                                canEdit={canEdit}
-                                canDelete={canDelete}
-                            />
-                        ))}
+                        {accounts.length > 0 ? (
+                            accounts.map((account) => (
+                                <AccountRow
+                                    key={account.id}
+                                    account={account}
+                                    onEdit={handleEdit}
+                                    onDelete={handleDelete}
+                                    canEdit={canEdit}
+                                    canDelete={canDelete}
+                                />
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={5} align="center">لا توجد حسابات</TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </TableContainer>

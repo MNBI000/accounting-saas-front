@@ -1,24 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField,
     Box, IconButton, Table, TableBody, TableCell, TableHead, TableRow,
-    Typography, Autocomplete, Grid
+    Typography, Autocomplete, Grid, CircularProgress
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-
-// Mock Accounts for Autocomplete
-const MOCK_ACCOUNTS_FLAT = [
-    { id: 1111, code: '1111', name: 'الصندوق الرئيسي' },
-    { id: 1112, code: '1112', name: 'البنك الأهلي' },
-    { id: 4101, code: '4101', name: 'مبيعات' },
-    { id: 5101, code: '5101', name: 'مصروفات عمومية' },
-    { id: 112, code: '112', name: 'العملاء' },
-    { id: 211, code: '211', name: 'الموردين' },
-];
+import { apiAccounts } from '../../services/apiAccounts';
 
 const JournalEntryForm = ({ open, onClose, onSave, initialData }) => {
-    const [formData, setFormData] = useState(initialData || {
+    const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         description: '',
         lines: [
@@ -26,6 +17,61 @@ const JournalEntryForm = ({ open, onClose, onSave, initialData }) => {
             { account_id: null, description: '', debit: 0, credit: 0 }
         ]
     });
+    const [accounts, setAccounts] = useState([]);
+    const [loadingAccounts, setLoadingAccounts] = useState(false);
+
+    useEffect(() => {
+        if (open) {
+            fetchAccounts();
+            if (initialData) {
+                setFormData(initialData);
+            } else {
+                setFormData({
+                    date: new Date().toISOString().split('T')[0],
+                    description: '',
+                    lines: [
+                        { account_id: null, description: '', debit: 0, credit: 0 },
+                        { account_id: null, description: '', debit: 0, credit: 0 }
+                    ]
+                });
+            }
+        }
+    }, [open, initialData]);
+
+    const fetchAccounts = async () => {
+        setLoadingAccounts(true);
+        try {
+            const data = await apiAccounts.getAll();
+            let accountsData = [];
+            if (Array.isArray(data)) {
+                accountsData = data;
+            } else if (data.data && Array.isArray(data.data)) {
+                accountsData = data.data;
+            }
+            // Flatten the tree if necessary or just use the list if it's already flat
+            // For autocomplete, we need a flat list of selectable accounts
+            const flatAccounts = flattenAccounts(accountsData);
+            setAccounts(flatAccounts);
+        } catch (err) {
+            console.error("Failed to fetch accounts", err);
+        } finally {
+            setLoadingAccounts(false);
+        }
+    };
+
+    const flattenAccounts = (nodes) => {
+        let flat = [];
+        for (const node of nodes) {
+            // Only add selectable accounts (leaf nodes usually)
+            if (node.is_selectable || (!node.children || node.children.length === 0)) {
+                flat.push(node);
+            }
+            if (node.children && node.children.length > 0) {
+                flat = flat.concat(flattenAccounts(node.children));
+            }
+        }
+        return flat;
+    };
 
     const handleLineChange = (index, field, value) => {
         const newLines = [...formData.lines];
@@ -100,11 +146,26 @@ const JournalEntryForm = ({ open, onClose, onSave, initialData }) => {
                                 <TableRow key={index}>
                                     <TableCell>
                                         <Autocomplete
-                                            options={MOCK_ACCOUNTS_FLAT}
-                                            getOptionLabel={(option) => `${option.code} - ${option.name}`}
-                                            value={MOCK_ACCOUNTS_FLAT.find(a => a.id === line.account_id) || null}
+                                            options={accounts}
+                                            loading={loadingAccounts}
+                                            getOptionLabel={(option) => `${option.code} - ${option.name_ar || option.name}`}
+                                            value={accounts.find(a => a.id === line.account_id) || null}
                                             onChange={(_, newValue) => handleLineChange(index, 'account_id', newValue?.id)}
-                                            renderInput={(params) => <TextField {...params} size="small" />}
+                                            renderInput={(params) => (
+                                                <TextField
+                                                    {...params}
+                                                    size="small"
+                                                    InputProps={{
+                                                        ...params.InputProps,
+                                                        endAdornment: (
+                                                            <React.Fragment>
+                                                                {loadingAccounts ? <CircularProgress color="inherit" size={20} /> : null}
+                                                                {params.InputProps.endAdornment}
+                                                            </React.Fragment>
+                                                        ),
+                                                    }}
+                                                />
+                                            )}
                                         />
                                     </TableCell>
                                     <TableCell>

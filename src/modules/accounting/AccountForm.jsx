@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField,
-    Box, Grid, MenuItem, FormControlLabel, Checkbox
+    Box, Grid, MenuItem, FormControlLabel, Checkbox, Autocomplete, CircularProgress
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
+import { apiAccounts } from '../../services/apiAccounts';
 
 const ACCOUNT_TYPES = [
     { value: 'asset', label: 'أصول' },
@@ -20,25 +21,63 @@ const AccountForm = ({ open, onClose, onSave, initialData, parentAccount }) => {
         name_en: '',
         type: 'asset',
         parent_id: null,
+        currency_id: 1, // Default currency
         is_selectable: true,
         description: ''
     });
+    const [accounts, setAccounts] = useState([]);
+    const [loadingAccounts, setLoadingAccounts] = useState(false);
 
     useEffect(() => {
-        if (initialData) {
-            setFormData(initialData);
-        } else {
-            setFormData({
-                code: '',
-                name_ar: '',
-                name_en: '',
-                type: parentAccount ? parentAccount.type : 'asset',
-                parent_id: parentAccount ? parentAccount.id : null,
-                is_selectable: true,
-                description: ''
-            });
+        if (open) {
+            fetchAccounts();
+            if (initialData) {
+                setFormData({ ...initialData, currency_id: initialData.currency_id || 1 });
+            } else {
+                setFormData({
+                    code: '',
+                    name_ar: '',
+                    name_en: '',
+                    type: parentAccount ? parentAccount.type : 'asset',
+                    parent_id: parentAccount ? parentAccount.id : null,
+                    currency_id: 1,
+                    is_selectable: true,
+                    description: ''
+                });
+            }
         }
     }, [initialData, parentAccount, open]);
+
+    const fetchAccounts = async () => {
+        setLoadingAccounts(true);
+        try {
+            const data = await apiAccounts.getAll();
+            let accountsData = [];
+            if (Array.isArray(data)) {
+                accountsData = data;
+            } else if (data.data && Array.isArray(data.data)) {
+                accountsData = data.data;
+            }
+            // Flatten the tree if necessary
+            const flatAccounts = flattenAccounts(accountsData);
+            setAccounts(flatAccounts);
+        } catch (err) {
+            console.error("Failed to fetch accounts", err);
+        } finally {
+            setLoadingAccounts(false);
+        }
+    };
+
+    const flattenAccounts = (nodes) => {
+        let flat = [];
+        for (const node of nodes) {
+            flat.push(node);
+            if (node.children && node.children.length > 0) {
+                flat = flat.concat(flattenAccounts(node.children));
+            }
+        }
+        return flat;
+    };
 
     const handleChange = (e) => {
         const { name, value, checked, type } = e.target;
@@ -78,7 +117,7 @@ const AccountForm = ({ open, onClose, onSave, initialData, parentAccount }) => {
                             name="type"
                             value={formData.type}
                             onChange={handleChange}
-                            disabled={!!parentAccount} // Inherit type from parent if exists
+                            disabled={!!parentAccount || !!formData.parent_id} // Inherit type from parent if exists
                         >
                             {ACCOUNT_TYPES.map((option) => (
                                 <MenuItem key={option.value} value={option.value}>
@@ -87,6 +126,41 @@ const AccountForm = ({ open, onClose, onSave, initialData, parentAccount }) => {
                             ))}
                         </TextField>
                     </Grid>
+
+                    {/* Parent Account Selection */}
+                    <Grid item xs={12}>
+                        <Autocomplete
+                            options={accounts}
+                            loading={loadingAccounts}
+                            getOptionLabel={(option) => `${option.code} - ${option.name_ar || option.name}`}
+                            value={accounts.find(a => a.id === formData.parent_id) || null}
+                            onChange={(_, newValue) => {
+                                setFormData({
+                                    ...formData,
+                                    parent_id: newValue ? newValue.id : null,
+                                    type: newValue ? newValue.type : formData.type // Inherit type
+                                });
+                            }}
+                            disabled={!!parentAccount} // Disable if parent is passed via props
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="الحساب الرئيسي (الأب)"
+                                    fullWidth
+                                    InputProps={{
+                                        ...params.InputProps,
+                                        endAdornment: (
+                                            <React.Fragment>
+                                                {loadingAccounts ? <CircularProgress color="inherit" size={20} /> : null}
+                                                {params.InputProps.endAdornment}
+                                            </React.Fragment>
+                                        ),
+                                    }}
+                                />
+                            )}
+                        />
+                    </Grid>
+
                     <Grid item xs={12}>
                         <TextField
                             fullWidth
