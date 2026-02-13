@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
     Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-    Button, IconButton, Typography, Chip, Tooltip, CircularProgress, Alert
+    IconButton, Typography, Chip, Tooltip, CircularProgress, Alert, TextField
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { usePermissions } from '../../hooks/usePermissions';
 import { PERMISSIONS } from '../../utils/permissions';
-import JournalEntryForm from './JournalEntryForm';
+import JournalEntryDetailsDialog from './JournalEntryDetailsDialog';
 import { apiJournal } from '../../services/apiJournal';
 
 const JournalEntriesList = () => {
@@ -17,14 +16,15 @@ const JournalEntriesList = () => {
     const [error, setError] = useState(null);
     const [openForm, setOpenForm] = useState(false);
     const [selectedEntry, setSelectedEntry] = useState(null);
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
-    const canCreate = hasPermission(PERMISSIONS.JOURNAL_ENTRIES_CREATE);
+
     const canView = hasPermission(PERMISSIONS.JOURNAL_ENTRIES_VIEW);
 
     const fetchEntries = async () => {
         setLoading(true);
         try {
-            const data = await apiJournal.getAll();
+            const data = await apiJournal.getAll(selectedDate);
             if (Array.isArray(data)) {
                 setEntries(data);
             } else if (data.data && Array.isArray(data.data)) {
@@ -43,60 +43,43 @@ const JournalEntriesList = () => {
 
     useEffect(() => {
         fetchEntries();
-    }, []);
+    }, [selectedDate]);
 
-    const handleCreate = () => {
-        setSelectedEntry(null);
-        setOpenForm(true);
-    };
 
-    const handleView = (entry) => {
-        setSelectedEntry(entry);
-        setOpenForm(true);
-    };
 
-    const handleSave = async (newEntry) => {
+    const handleView = async (entry) => {
         try {
-            if (selectedEntry) {
-                // Usually journal entries are not editable after posting, but for draft maybe
-                // Assuming update logic if needed, or just create
-                // If API supports update:
-                // await apiJournal.update(selectedEntry.id, newEntry);
-                // But typically we might just be creating new ones here or viewing.
-                // For now, let's assume we can only create new ones or viewing existing.
-                // If the requirement allows editing, we would call update.
-                // Let's assume create only for now based on typical accounting rules, 
-                // or if it is a draft.
-                if (selectedEntry.id) {
-                    await apiJournal.update(selectedEntry.id, newEntry);
-                }
-            } else {
-                await apiJournal.create(newEntry);
-            }
-            setOpenForm(false);
-            fetchEntries();
+            // Optimistically show details if we have them, usually list items are summaries.
+            // We fetch the full detail to get 'items' (debit/credit lines).
+            const fullEntry = await apiJournal.getById(entry.id);
+            setSelectedEntry(fullEntry);
         } catch (err) {
-            console.error("Failed to save journal entry", err);
-            alert("فشل حفظ القيد");
+            console.error("Failed to fetch full entry details", err);
+            // Fallback to the partial entry from the list
+            setSelectedEntry(entry);
         }
+        setOpenForm(true);
     };
+
+
 
     if (loading) return <Box sx={{ p: 3, textAlign: 'center' }}><CircularProgress /></Box>;
     if (error) return <Box sx={{ p: 3 }}><Alert severity="error">{error}</Alert></Box>;
 
     return (
         <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, alignItems: 'center' }}>
                 <Typography variant="h6">القيود اليومية</Typography>
-                {canCreate && (
-                    <Button
-                        variant="contained"
-                        startIcon={<AddIcon />}
-                        onClick={handleCreate}
-                    >
-                        قيد جديد
-                    </Button>
-                )}
+                <TextField
+                    label="التاريخ"
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    InputLabelProps={{
+                        shrink: true,
+                    }}
+                    size="small"
+                />
             </Box>
 
             <TableContainer component={Paper}>
@@ -106,7 +89,7 @@ const JournalEntriesList = () => {
                             <TableCell>رقم القيد</TableCell>
                             <TableCell>التاريخ</TableCell>
                             <TableCell>البيان</TableCell>
-                            <TableCell>إجمالي المدين/الدائن</TableCell>
+                            <TableCell>الإجمالي</TableCell>
                             <TableCell>الحالة</TableCell>
                             <TableCell>بواسطة</TableCell>
                             <TableCell align="center">إجراءات</TableCell>
@@ -116,18 +99,18 @@ const JournalEntriesList = () => {
                         {entries.length > 0 ? (
                             entries.map((entry) => (
                                 <TableRow key={entry.id}>
-                                    <TableCell>{entry.number || entry.id}</TableCell>
-                                    <TableCell>{entry.date}</TableCell>
-                                    <TableCell>{entry.description}</TableCell>
-                                    <TableCell>{Number(entry.amount || 0).toLocaleString()}</TableCell>
+                                    <TableCell>{entry.reference_no || entry.id}</TableCell>
+                                    <TableCell>{entry.date ? entry.date.split('T')[0] : '-'}</TableCell>
+                                    <TableCell>{entry.description_ar || entry.description_en || '-'}</TableCell>
+                                    <TableCell>{Number(entry.total_amount || 0).toLocaleString()}</TableCell>
                                     <TableCell>
                                         <Chip
-                                            label={entry.status === 'posted' ? 'مرحل' : 'مسودة'}
-                                            color={entry.status === 'posted' ? 'success' : 'warning'}
+                                            label={entry.status === 'posted' ? 'مرحل' : entry.status}
+                                            color={entry.status === 'posted' ? 'success' : 'default'}
                                             size="small"
                                         />
                                     </TableCell>
-                                    <TableCell>{entry.created_by || '-'}</TableCell>
+                                    <TableCell>{entry.user?.name || '-'}</TableCell>
                                     <TableCell align="center">
                                         <Tooltip title="عرض التفاصيل">
                                             <IconButton size="small" color="primary" onClick={() => handleView(entry)}>
@@ -146,11 +129,10 @@ const JournalEntriesList = () => {
                 </Table>
             </TableContainer>
 
-            <JournalEntryForm
+            <JournalEntryDetailsDialog
                 open={openForm}
                 onClose={() => setOpenForm(false)}
-                onSave={handleSave}
-                initialData={selectedEntry}
+                entry={selectedEntry}
             />
         </Box>
     );

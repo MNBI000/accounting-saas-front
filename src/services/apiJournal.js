@@ -1,8 +1,9 @@
 import apiClient from '../lib/axios';
 
 export const apiJournal = {
-    getAll: async () => {
-        const response = await apiClient.get('/operations/daily-journal?date=' + new Date().toISOString());
+    getAll: async (date) => {
+        const queryDate = date ? date : new Date().toISOString().split('T')[0];
+        const response = await apiClient.get('/operations/daily-journal?date=' + queryDate);
         return response.data;
     },
 
