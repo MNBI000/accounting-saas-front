@@ -1,19 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, Tabs, Tab } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { usePermissions } from '../../hooks/usePermissions';
 import { PERMISSIONS } from '../../utils/permissions';
 import VoucherList from './VoucherList';
 import TreasuryList from './TreasuryList';
+import BankAccountList from './BankAccountList';
+import CurrencyList from './CurrencyList';
 
 const TreasuryView = () => {
     const { hasPermission } = usePermissions();
-    const [tabIndex, setTabIndex] = useState(0);
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const showVouchers = hasPermission(PERMISSIONS.VOUCHERS_VIEW);
     const showTreasuries = hasPermission(PERMISSIONS.TREASURIES_VIEW);
 
+    const tabsConfig = [];
+    if (showVouchers) {
+        tabsConfig.push({ key: 'vouchers', label: 'سندات القبض والصرف', component: <VoucherList /> });
+    }
+    if (showTreasuries) {
+        tabsConfig.push({ key: 'treasuries', label: 'إدارة الخزائن', component: <TreasuryList /> });
+        tabsConfig.push({ key: 'bank_accounts', label: 'الحسابات البنكية', component: <BankAccountList /> });
+        tabsConfig.push({ key: 'currencies', label: 'العملات', component: <CurrencyList /> });
+    }
+
+    const getInitialIndex = () => {
+        const currentTabKey = searchParams.get('tab');
+        const index = tabsConfig.findIndex(tab => tab.key === currentTabKey);
+        return index !== -1 ? index : 0;
+    };
+
+    const [tabIndex, setTabIndex] = useState(getInitialIndex);
+
+    useEffect(() => {
+        setTabIndex(getInitialIndex());
+    }, [searchParams]);
+
     const handleChange = (event, newValue) => {
         setTabIndex(newValue);
+        const tabKey = tabsConfig[newValue]?.key;
+        if (tabKey) {
+            setSearchParams({ tab: tabKey });
+        }
     };
 
     if (!showVouchers && !showTreasuries) {
@@ -33,12 +62,12 @@ const TreasuryView = () => {
             </Typography>
 
             <Tabs value={tabIndex} onChange={handleChange} sx={{ mb: 3 }}>
-                {showVouchers && <Tab label="سندات القبض والصرف" />}
-                {showTreasuries && <Tab label="إدارة الخزائن" />}
+                {tabsConfig.map((tab, index) => (
+                    <Tab key={tab.key} label={tab.label} />
+                ))}
             </Tabs>
 
-            {showVouchers && tabIndex === 0 && <VoucherList />}
-            {showTreasuries && tabIndex === (showVouchers ? 1 : 0) && <TreasuryList />}
+            {tabsConfig[tabIndex] && tabsConfig[tabIndex].component}
         </Box>
     );
 };
