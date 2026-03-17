@@ -15,6 +15,7 @@ import {
     Alert
 } from '@mui/material';
 import { apiAccounts } from '../../services/apiAccounts';
+import { apiBranches } from '../../services/apiBranches';
 
 const TreasuryForm = ({ open, onClose, onSave, initialData }) => {
     const [formData, setFormData] = useState({
@@ -24,25 +25,30 @@ const TreasuryForm = ({ open, onClose, onSave, initialData }) => {
     });
 
     const [accounts, setAccounts] = useState([]);
+    const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const fetchAccounts = async () => {
+        const fetchData = async () => {
             setLoading(true);
             try {
-                const response = await apiAccounts.getAll();
-                setAccounts(response.data || response);
+                const [accountsRes, branchesRes] = await Promise.all([
+                    apiAccounts.getAll(),
+                    apiBranches.getAll()
+                ]);
+                setAccounts(accountsRes.data || accountsRes);
+                setBranches(branchesRes.data || branchesRes);
             } catch (err) {
-                console.error("Error fetching accounts:", err);
-                setError("فشل في تحميل الحسابات");
+                console.error("Error fetching data:", err);
+                setError("فشل في تحميل البيانات");
             } finally {
                 setLoading(false);
             }
         };
 
         if (open) {
-            fetchAccounts();
+            fetchData();
             // Get branch_id from localStorage or default to 1 (Main Branch)
             const currentBranch = localStorage.getItem('current_branch_id') || 1;
             setFormData(prev => ({ ...prev, branch_id: currentBranch }));
@@ -125,7 +131,23 @@ const TreasuryForm = ({ open, onClose, onSave, initialData }) => {
                                 </Select>
                             </FormControl>
                         </Grid>
-                        {/* Branch ID is hidden for now as we assume current branch */}
+                        <Grid item xs={12}>
+                            <FormControl fullWidth required>
+                                <InputLabel>الفرع</InputLabel>
+                                <Select
+                                    name="branch_id"
+                                    value={formData.branch_id}
+                                    label="الفرع"
+                                    onChange={handleChange}
+                                >
+                                    {branches.map(branch => (
+                                        <MenuItem key={branch.id} value={branch.id}>
+                                            {branch.name}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
                     </Grid>
                 </DialogContent>
                 <DialogActions>

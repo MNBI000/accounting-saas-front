@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { apiAccounts } from '../../services/apiAccounts';
 import { apiCurrencies } from '../../services/apiCurrencies';
+import { apiBranches } from '../../services/apiBranches';
 
 const BankAccountForm = ({ open, onClose, onSave, initialData }) => {
     const [formData, setFormData] = useState({
@@ -29,6 +30,7 @@ const BankAccountForm = ({ open, onClose, onSave, initialData }) => {
 
     const [accounts, setAccounts] = useState([]);
     const [currencies, setCurrencies] = useState([]);
+    const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -36,12 +38,14 @@ const BankAccountForm = ({ open, onClose, onSave, initialData }) => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                const [accountsRes, currenciesRes] = await Promise.all([
+                const [accountsRes, currenciesRes, branchesRes] = await Promise.all([
                     apiAccounts.getAll(),
-                    apiCurrencies.getAll()
+                    apiCurrencies.getAll(),
+                    apiBranches.getAll()
                 ]);
                 setAccounts(accountsRes.data || accountsRes);
                 setCurrencies(currenciesRes.data || currenciesRes);
+                setBranches(branchesRes.data || branchesRes);
             } catch (err) {
                 console.error("Error fetching data:", err);
                 setError("فشل في تحميل البيانات");
@@ -170,6 +174,23 @@ const BankAccountForm = ({ open, onClose, onSave, initialData }) => {
                                     {accounts.map(acc => (
                                         <MenuItem key={acc.id} value={acc.id}>
                                             {acc.name_ar} ({acc.code})
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <FormControl fullWidth required>
+                                <InputLabel>الفرع</InputLabel>
+                                <Select
+                                    name="branch_id"
+                                    value={formData.branch_id}
+                                    label="الفرع"
+                                    onChange={handleChange}
+                                >
+                                    {branches.map(branch => (
+                                        <MenuItem key={branch.id} value={branch.id}>
+                                            {branch.name}
                                         </MenuItem>
                                     ))}
                                 </Select>
