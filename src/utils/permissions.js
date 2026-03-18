@@ -61,6 +61,10 @@ export const PERMISSIONS = {
     FINANCIAL_PERIODS_VIEW: 'financial_periods.view',
     FINANCIAL_PERIODS_LOCK: 'financial_periods.lock',
     FINANCIAL_PERIODS_UNLOCK: 'financial_periods.unlock',
+
+    // Admin
+    USERS_MANAGE: 'users.manage',
+    BRANCHES_MANAGE: 'branches.manage',
 };
 
 /**

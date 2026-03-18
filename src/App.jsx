@@ -16,6 +16,7 @@ import InventoryView from './modules/inventory/InventoryView';
 import AccountingView from './modules/accounting/AccountingView';
 import ReportsView from './modules/reports/ReportsView';
 import TreasuryView from './modules/treasury/TreasuryView';
+import AdminView from './modules/admin/AdminView';
 import useAuthStore from './stores/useAuthStore';
 import theme from './config/theme';
 
@@ -56,6 +57,7 @@ function App() {
                                 <Route path="accounting" element={<AccountingView />} />
                                 <Route path="reports" element={<ReportsView />} />
                                 <Route path="treasury" element={<TreasuryView />} />
+                                <Route path="admin" element={<AdminView />} />
                             </Route>
                         </Routes>
                     </Router>

@@ -109,6 +109,15 @@ const MainLayout = () => {
                 PERMISSIONS.VOUCHERS_VIEW,
             ]
         },
+        {
+            text: 'الإعدادات والإدارة',
+            icon: <PersonIcon />,
+            path: '/admin',
+            requiredPermissions: [
+                PERMISSIONS.USERS_MANAGE,
+                PERMISSIONS.BRANCHES_MANAGE,
+            ]
+        },
     ];
 
     // Filter menu items based on user permissions
@@ -152,6 +161,11 @@ const MainLayout = () => {
                     <Typography variant="caption" color="text.secondary" noWrap display="block">
                         {user?.email || ''}
                     </Typography>
+                    {user?.branch && (
+                        <Typography variant="caption" color="primary.main" noWrap display="block" sx={{ mt: 0.5, fontWeight: 'medium' }}>
+                            {user.branch.name}
+                        </Typography>
+                    )}
                 </Box>
             </Box>
             <Divider />

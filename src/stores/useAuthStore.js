@@ -53,6 +53,7 @@ const useAuthStore = create(
             token: null,
             permissions: [],
             isAuthenticated: false,
+            branch: null, // Store current user's branch
 
             // Login Action
             login: (user, token) => {
@@ -61,7 +62,8 @@ const useAuthStore = create(
                     user,
                     token,
                     permissions: getPermissions(user),
-                    isAuthenticated: true
+                    isAuthenticated: true,
+                    branch: user?.branch || null
                 });
             },
 
@@ -73,14 +75,16 @@ const useAuthStore = create(
                     user: null,
                     token: null,
                     permissions: [],
-                    isAuthenticated: false
+                    isAuthenticated: false,
+                    branch: null
                 });
             },
 
             // Update User Action
             updateUser: (user) => set({
                 user,
-                permissions: getPermissions(user)
+                permissions: getPermissions(user),
+                branch: user?.branch || null
             }),
 
             // Check if user has a specific permission
