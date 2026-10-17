@@ -3,7 +3,9 @@ import { Box, Tabs, Tab, Paper, Typography } from '@mui/material';
 import BusinessIcon from '@mui/icons-material/Business';
 import PeopleIcon from '@mui/icons-material/People';
 import BranchesList from './components/BranchesList';
+import WarehousesList from './components/WarehousesList';
 import UsersList from './components/UsersList';
+import StoreIcon from '@mui/icons-material/Store';
 
 function TabPanel(props) {
     const { children, value, index, ...other } = props;
@@ -43,6 +45,7 @@ const AdminView = () => {
                 <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                     <Tabs value={tabValue} onChange={handleTabChange} aria-label="admin tabs">
                         <Tab icon={<BusinessIcon />} iconPosition="start" label="الفروع" />
+                        <Tab icon={<StoreIcon />} iconPosition="start" label="المستودعات" />
                         <Tab icon={<PeopleIcon />} iconPosition="start" label="المستخدمين" />
                     </Tabs>
                 </Box>
@@ -51,6 +54,9 @@ const AdminView = () => {
                     <BranchesList />
                 </TabPanel>
                 <TabPanel value={tabValue} index={1}>
+                    <WarehousesList />
+                </TabPanel>
+                <TabPanel value={tabValue} index={2}>
                     <UsersList />
                 </TabPanel>
             </Paper>

@@ -65,6 +65,7 @@ export const PERMISSIONS = {
     // Admin
     USERS_MANAGE: 'users.manage',
     BRANCHES_MANAGE: 'branches.manage',
+    WAREHOUSES_MANAGE: 'warehouses.manage',
 };
 
 /**
